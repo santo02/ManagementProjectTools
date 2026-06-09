@@ -1,0 +1,12 @@
+# Folder .NET
+bin/
+obj/
+.vs/
+*.user
+
+# Folder Node.js/Vue
+node_modules/
+dist/
+.output/
+.nuxt/
+.env
