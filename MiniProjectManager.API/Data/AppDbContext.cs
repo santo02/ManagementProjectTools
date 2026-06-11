@@ -13,5 +13,23 @@ namespace MiniProjectManager.API.Data
         public DbSet<Board> Boards { get; set; }
         public DbSet<User> Users { get; set; }
         public DbSet<TaskItem> TaskItems { get; set; }
+
+        public DbSet<WorkspaceMember> WorkspaceMembers { get; set; }
+
+        protected override void OnModelCreating(ModelBuilder modelBuilder)
+        {
+
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasOne(wm => wm.Workspace)
+                .WithMany(w => w.Members)
+                .HasForeignKey(wm => wm.WorkspaceId);
+
+            modelBuilder.Entity<WorkspaceMember>()
+                .HasOne(wm => wm.User)
+                .WithMany(u => u.WorkspaceMembers)
+                .HasForeignKey(wm => wm.UserId);
+
+            base.OnModelCreating(modelBuilder);
+        }
     }
 }

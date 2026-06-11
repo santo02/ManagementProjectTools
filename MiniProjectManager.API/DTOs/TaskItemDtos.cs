@@ -4,6 +4,7 @@ namespace MiniProjectManager.API.DTOs
     {
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
+        
         public int BoardId { get; set; }
         public int? AssigneeId { get; set; }
 

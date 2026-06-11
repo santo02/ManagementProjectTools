@@ -19,33 +19,33 @@ namespace MiniProjectManager.API.Controllers
         }
 
         [HttpGet("board/{boardId}")]
-        public async Task<IActionResult> GetByBoardId(int boardId)
+        public async Task<IActionResult> GetTasksByBoard(int boardId)
         {
-            var task = await _taskItemService.GetTasksByBoardIdAsync(boardId);
-
-            var response = task.Select(t => new TaskItemResponseDto
+            try
             {
-                Id = t.Id,
-                Title = t.Title,
-                Description = t.Description,
-                CreatedAt = t.CreatedAt,
-                BoardId = t.BoardId,
-                BoardTitle = t.Board?.Title ?? string.Empty,
-                Priority = t.Priority,
-                AssigneeId = t.AssigneeId,
-                AssigneeName = t.Assignee?.Username
-            });
-
-            return Ok(response);
+                var tasks = await _taskItemService.GetTasksByBoardIdAsync(boardId);
+                return Ok(tasks);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Terjadi kesalahan internal: {ex.Message}");
+            }
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] CreateTaskItemDto req)
+        public async Task<IActionResult> Create([FromBody] CreateTaskItemDto dto)
         {
-            var newTaskItem = await _taskItemService.CreateTaskAsync(req
-            );
+            try
+            {
+                if (string.IsNullOrEmpty(dto.Title)) return BadRequest("Judul tugas tidak boleh kosong.");
 
-            return Created(string.Empty, new { Message = "Tugas Berhasil dibuat!", TaskId = newTaskItem.Id });
+                var result = await _taskItemService.CreateTaskAsync(dto);
+                return Ok(result);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"Gagal membuat tugas: {ex.Message}");
+            }
         }
 
         [HttpPut("{Id}")]
@@ -73,5 +73,15 @@ namespace MiniProjectManager.API.Controllers
 
             return Ok(new { Message = "Task Berhasil dihapus!" });
         }
+
+        [HttpPut("{id}/move")]
+        public async Task<IActionResult> MoveTask(int id, [FromBody] MoveTaskDto dto)
+        {
+            var success = await _taskItemService.UpdateTaskBoardAsync(id, dto.NewBoardId);
+            if (!success) return NotFound("Tugas tidak ditemukan.");
+            return Ok(new { message = "Tugas berhasil dipindahkan!" });
+        }
+
+        public class MoveTaskDto { public int NewBoardId { get; set; } }
     }
 }

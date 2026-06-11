@@ -14,32 +14,50 @@ namespace MiniProjectManager.API.Services
             _context = context;
         }
 
-        async Task<TaskItem?> ITaskItemService.CreateTaskAsync(CreateTaskItemDto req)
+        async Task<TaskItemResponseDto?> ITaskItemService.CreateTaskAsync(CreateTaskItemDto dto)
         {
-            var newTaskItem = new TaskItem
+            var task = new TaskItem
             {
-                Title = req.Title,
-                Description = req.Description,
-                BoardId = req.BoardId,
-                AssigneeId = req.AssigneeId,
-                Priority = req.Priority,
+                Title = dto.Title,
+                Description = dto.Description,
+                Priority = dto.Priority,
+                // Progress = 0, 
+                // DueDate = dto.DueDate,
+                BoardId = dto.BoardId,
                 CreatedAt = DateTime.UtcNow
             };
 
-            _context.TaskItems.Add(newTaskItem);
-
+            _context.TaskItems.Add(task);
             await _context.SaveChangesAsync();
 
-            return newTaskItem;
+
+            return new TaskItemResponseDto
+            {
+                Id = task.Id,
+                Title = task.Title,
+                Description = task.Description,
+                Priority = task.Priority,
+                // Progress = task.Progress,
+                // DueDate = task.DueDate,
+                BoardId = task.BoardId
+            };
         }
 
-        async Task<IEnumerable<TaskItem>> ITaskItemService.GetTasksByBoardIdAsync(int boardId)
+        async Task<IEnumerable<TaskItemResponseDto>> ITaskItemService.GetTasksByBoardIdAsync(int boardId)
         {
             return await _context.TaskItems
-                                .Include(t => t.Board)
-                                .Include(t => t.Assignee)
-                                .Where(t => t.BoardId == boardId)
-                                .ToListAsync();
+                 .Where(t => t.BoardId == boardId)
+                 .Select(t => new TaskItemResponseDto
+                 {
+                     Id = t.Id,
+                     Title = t.Title,
+                     Description = t.Description,
+                     Priority = t.Priority,
+                     //  Progress = t.Progress,
+                     //  DueDate = t.DueDate,
+                     BoardId = t.BoardId
+                 })
+                 .ToListAsync();
 
         }
         public async Task<bool> DeleteTaskAsync(int Id)
@@ -72,6 +90,16 @@ namespace MiniProjectManager.API.Services
             await _context.SaveChangesAsync();
 
             return task;
+        }
+
+        public async Task<bool> UpdateTaskBoardAsync(int taskId, int newBoardId)
+        {
+            var task = await _context.TaskItems.FindAsync(taskId);
+            if (task == null) return false;
+
+            task.BoardId = newBoardId;
+            await _context.SaveChangesAsync();
+            return true;
         }
 
     }

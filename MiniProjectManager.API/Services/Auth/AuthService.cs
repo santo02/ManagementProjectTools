@@ -25,16 +25,18 @@ namespace MiniProjectManager.API.Services
             // Cari user di database
             var user = await _context.Users.FirstOrDefaultAsync(u => u.Username == request.Username);
 
-            // Jika user tidak ditemukan atau password salah (diverifikasi oleh BCrypt)
-            if (user == null || !BCrypt.Net.BCrypt.Verify(request.Password, user.Password))
-            {
-                return null;
-            }
-
-            // Jika valid, buat token JWT
             var token = GenerateJwtToken(user);
 
-            return new AuthResponseDto { Token = token };
+            // PERBARUI RETURN NYA:
+            return new AuthResponseDto
+            {
+                Token = token,
+                User = new UserPayloadDto
+                {
+                    Id = user.Id,
+                    Username = user.Username
+                }
+            };
         }
 
         public async Task<string> RegisterAsync(RegisterDto req)

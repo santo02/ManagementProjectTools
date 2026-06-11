@@ -1,0 +1,19 @@
+using MiniProjectManager.API.DTOs;
+using MiniProjectManager.API.Entities;
+
+namespace MiniProjectManager.API.Services
+{
+
+    public interface IWorkspaceService
+    {
+        Task<IEnumerable<Workspace>> GetAllWorkspace(int userId);
+
+        Task<WorkspaceResponseDto> CreateWorkspace(string name, int userId);
+
+        Task<bool> Addmember(int workspaceId, AddMemberRequestDto request, int CurrentUserId);
+
+        Task<bool> IsLeaderAsync(int workspaceId, int userId);
+
+        Task<IEnumerable<WorkspaceResponseDto>> GetUserWorkspacesAsync(int userId);
+    }
+}

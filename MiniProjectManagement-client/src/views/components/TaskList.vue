@@ -1,112 +1,197 @@
 <script setup lang="ts">
-import { Search, Clock, Plus } from 'lucide-vue-next'
-import { useTaskStore } from '@/stores/taskStore'
-import CreateTaskModal from '../components/CreateTaskModal.vue'
-import CreateBoardModal from '../components/CreateBoardModal.vue'
+import { Plus, MessageSquare, Paperclip, MoreHorizontal, Calendar, CheckSquare, Loader2 } from 'lucide-vue-next'
 import { ref } from 'vue'
+import { useTaskStore } from '@/stores/taskStore'
 
+const emit = defineEmits(['select-task'])
 const taskStore = useTaskStore()
-const isModalOpen = ref(false)
-const isBoardModalOpen = ref(false)
 
-// Fungsi bantuan untuk menentukan warna badge prioritas
-const getPriorityColor = (priority: string) => {
-    if (priority?.toLowerCase() === 'high') return 'bg-rose-100 text-rose-600'
-    if (priority?.toLowerCase() === 'medium') return 'bg-violet-100 text-violet-600'
-    return 'bg-green-100 text-green-600'
+
+const props = defineProps({
+    boardId: {
+        type: Number,
+        required: true
+    },
+    title: {
+        type: String,
+        required: true
+    },
+    tasks: {
+        type: Array as () => any[],
+        default: () => []
+    }
+})
+
+
+// State form modal
+const isModalOpen = ref(false)
+const titleInput = ref('')
+const descInput = ref('')
+const priorityInput = ref('Normal')
+const dueDateInput = ref('')
+const isSubmitting = ref(false)
+
+const handleAddTask = async () => {
+    if (!titleInput.value.trim()) return
+    isSubmitting.value = true
+    try {
+        await taskStore.createTask({
+            title: titleInput.value,
+            description: descInput.value,
+            priority: priorityInput.value,
+            dueDate: dueDateInput.value ? new Date(dueDateInput.value).toISOString() : null,
+            boardId: props.boardId
+        })
+        // Reset Form
+        titleInput.value = ''
+        descInput.value = ''
+        priorityInput.value = 'Normal'
+        dueDateInput.value = ''
+        isModalOpen.value = false
+    } catch (err) {
+        console.error(err)
+    } finally {
+        isSubmitting.value = false
+    }
 }
 
-const formatDate = (dateString: string | null) => {
-    if (!dateString) return 'No date set'
+// Fungsi pembantu warna badge prioritas dinamis dari .NET string
+const getPriorityClass = (priority: string) => {
+    if (priority === 'High' || priority === 'Tinggi') return 'bg-rose-50 text-rose-600'
+    if (priority === 'Normal') return 'bg-amber-50 text-amber-600'
+    return 'bg-slate-50 text-slate-600'
+}
 
-    const date = new Date(dateString)
+const onDragStart = (event: DragEvent, task: any, fromBoardId: number) => {
+    if (event.dataTransfer) {
+        event.dataTransfer.effectAllowed = 'move';
+        // Simpan ID tugas dan ID kolom asal ke dalam transfer data browser
+        event.dataTransfer.setData('taskId', (task.id || task.Id).toString());
+        event.dataTransfer.setData('fromBoardId', fromBoardId.toString());
+    }
+}
 
-    // Menggunakan Intl.DateTimeFormat untuk format yang rapi dan konsisten
-    return new Intl.DateTimeFormat('id-ID', {
-        day: 'numeric',
-        month: 'short',
-        year: 'numeric',
-        hour: '2-digit',
-        minute: '2-digit',
-        hour12: true // Menggunakan format AM/PM sesuai desain referensi
-    }).format(date)
+const onDrop = async (event: DragEvent, toBoardId: number) => {
+    if (event.dataTransfer) {
+        const taskId = parseInt(event.dataTransfer.getData('taskId'));
+        const fromBoardId = parseInt(event.dataTransfer.getData('fromBoardId'));
+
+        // Jika digeser ke kolom yang sama, abaikan
+        if (fromBoardId === toBoardId) return;
+
+        // Panggil fungsi store untuk eksekusi perpindahan instan
+        await taskStore.moveTask(taskId, fromBoardId, toBoardId);
+    }
 }
 </script>
-
 <template>
-    <section class="w-[450px] bg-white border-r border-slate-100 flex flex-col shrink-0">
-        <div class="p-6">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-xl font-bold text-slate-900">My Events</h2>
-                <div class="flex gap-3">
-                    <button class="p-2 hover:bg-slate-100 rounded-full transition-colors">
-                        <Search class="w-5 h-5 text-slate-400" />
-                    </button>
-                    <button @click="isBoardModalOpen = true"
-                        class="p-2 bg-violet-600 hover:bg-violet-700 text-white rounded-full transition-colors shadow-md shadow-violet-200">
-                        <Plus class="w-5 h-5" />
-                    </button>
-                </div>
+    <div class="w-80 flex flex-col shrink-0 max-h-full">
+        <div class="flex justify-between items-center mb-4 px-1">
+            <div class="flex items-center gap-2">
+                <h3 class="text-sm font-bold text-slate-800 tracking-tight">{{ title }}</h3>
+                <span class="text-[11px] font-bold px-2 py-0.5 rounded-full bg-violet-100 text-violet-700">
+                    {{ tasks.length }}
+                </span>
             </div>
-
-
-            <div class="flex gap-4 text-sm font-medium text-slate-400 border-b border-slate-100 pb-2">
-                <span class="text-slate-900 border-b-2 border-slate-900 pb-2 cursor-pointer">All</span>
-                <span class="hover:text-slate-900 cursor-pointer">Remote</span>
-                <span class="hover:text-slate-900 cursor-pointer">In Person</span>
-            </div>
+            <button class="p-1 text-slate-400 rounded-lg hover:bg-white transition-all">
+                <MoreHorizontal class="w-4 h-4" />
+            </button>
         </div>
 
-        <div class="flex-1 overflow-y-auto px-6 pb-6 space-y-8">
+        <div class="space-y-3.5 overflow-y-auto pr-1 flex-1 pb-4" @dragover.prevent @drop="onDrop($event, boardId)">
 
-            <div v-if="taskStore.isLoading" class="text-center text-slate-400 py-10">
-                Memuat data tugas...
-            </div>
+            <template v-if="tasks && tasks.length > 0">
+                <div v-for="task in tasks" :key="task.id" @click="emit('select-task', task)" draggable="true"
+                    @dragstart="onDragStart($event, task, boardId)"
+                    class="bg-white border border-slate-100/80 rounded-[20px] p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer relative group active:scale-95 active:shadow-sm duration-150">
 
-            <div v-else>
-                <div v-for="board in taskStore.boards" :key="board.id" class="mb-8">
-
-                    <div class="flex items-center gap-2 mb-4">
-                        <h3 class="text-xs font-bold text-slate-400 tracking-wider uppercase">{{ board.title }}</h3>
-                        <span class="bg-slate-100 text-slate-500 text-[10px] px-2 py-0.5 rounded-full font-bold">
-                            {{ taskStore.tasksByBoard[board.id]?.length || 0 }}
+                    <div class="flex justify-between items-center mb-2.5">
+                        <span
+                            :class="['text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full', getPriorityClass(task.priority || task.Priority)]">
+                            {{ task.priority || task.Priority }}
                         </span>
                     </div>
+                    <h4
+                        class="text-sm font-bold text-slate-800 line-clamp-1 mb-1 group-hover:text-violet-600 transition-colors">
+                        {{ task.title || task.Title }}
+                    </h4>
+                    <p class="text-xs text-slate-400 font-medium line-clamp-2 mb-4 leading-relaxed">
+                        {{ task.description || task.Description || 'No description.' }}
+                    </p>
 
-                    <div class="space-y-4">
-                        <div v-for="item in taskStore.tasksByBoard[board.id]" :key="item.id"
-                            @click="taskStore.selectTask(item)" :class="[
-                                'p-5 rounded-[24px] border hover:shadow-md transition-all cursor-pointer bg-white group',
-                                taskStore.selectedTask?.id === item.id ? 'border-violet-500 ring-1 ring-violet-500 shadow-sm' : 'border-slate-100'
-                            ]">
-                            <div class="flex justify-between items-start mb-3 gap-4">
-                                <h3
-                                    class="font-semibold text-slate-900 leading-tight group-hover:text-violet-600 transition-colors">
-                                    {{ item.title }}</h3>
-
-                                <span
-                                    :class="['px-3 py-1 rounded-full text-[10px] font-bold whitespace-nowrap', getPriorityColor(item.priority)]">
-                                    {{ item.priority }} priority
-                                </span>
-                            </div>
-                            <div class="flex items-center gap-2 text-xs text-slate-400">
-                                <Clock class="w-3 h-3" /> {{ formatDate(item.createdAt) }}
-                            </div>
+                    <!-- <div
+                        class="border-t border-slate-50 pt-3 flex justify-between items-center text-[11px] font-semibold text-slate-400">
+                        <div class="flex items-center gap-1">
+                            <Calendar class="w-3.5 h-3.5 text-slate-300" />
+                            <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString('id-ID', {
+                                day: 'numeric',
+                                month: 'short' }) : '-' }}</span>
                         </div>
+                        <img class="h-5 w-5 rounded-full object-cover"
+                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60" />
+                    </div> -->
+                </div>
+            </template>
 
-                        <div v-if="!taskStore.tasksByBoard[board.id]?.length"
-                            class="p-5 rounded-[24px] border border-dashed border-slate-200 text-center text-slate-400 text-sm">
-                            Tidak ada tugas
+            <template v-else>
+                <div
+                    class="bg-slate-50/40 border border-dashed border-slate-200/60 rounded-[20px] py-8 px-4 flex flex-col items-center justify-center text-center">
+                    <div class="p-2.5 bg-white rounded-xl shadow-sm text-slate-300 mb-2">
+                        <CheckSquare class="w-5 h-5" />
+                    </div>
+                    <p class="text-[11px] font-bold text-slate-400 uppercase tracking-wider">Belum ada tugas</p>
+                    <p class="text-[10px] text-slate-400 font-medium mt-0.5 max-w-[180px]">Klik tombol di bawah untuk
+                        memulai tugas pertama di kolom ini.</p>
+                </div>
+            </template>
+
+            <button @click="isModalOpen = true"
+                class="w-full border border-dashed border-slate-200 hover:border-violet-300 text-slate-400 hover:text-violet-600 bg-white/50 hover:bg-white rounded-[16px] py-3 text-xs font-bold flex items-center justify-center gap-2 transition-all mt-2">
+                <Plus class="w-4 h-4" /> Add New Task
+            </button>
+        </div>
+
+        <div v-if="isModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" @click="isModalOpen = false"></div>
+            <div class="relative bg-white w-full max-w-md rounded-[24px] p-6 z-10 shadow-xl space-y-4">
+                <h3 class="text-base font-bold text-slate-900">Tambah Tugas Baru ke "{{ title }}"</h3>
+                <form @submit.prevent="handleAddTask" class="space-y-3">
+                    <input v-model="titleInput" type="text" placeholder="Judul Tugas" required
+                        class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl py-2.5 px-4 text-xs focus:ring-2 focus:ring-violet-500 outline-none" />
+
+                    <textarea v-model="descInput" placeholder="Deskripsi Singkat" rows="3"
+                        class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl py-2.5 px-4 text-xs focus:ring-2 focus:ring-violet-500 outline-none resize-none"></textarea>
+
+                    <div class="grid grid-cols-2 gap-3">
+                        <div>
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Prioritas</label>
+                            <select v-model="priorityInput"
+                                class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl py-2 px-3 text-xs outline-none">
+                                <option value="Low">Low</option>
+                                <option value="Normal">Normal</option>
+                                <option value="High">High</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label
+                                class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Deadline</label>
+                            <input v-model="dueDateInput" type="date"
+                                class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl py-2 px-3 text-xs outline-none" />
                         </div>
                     </div>
-                </div>
-                <button @click="isModalOpen = true"
-                    class="w-full py-4 mt-2 border-2 border-dashed border-slate-200 rounded-[24px] text-slate-400 font-semibold hover:border-violet-400 hover:text-violet-600 transition-colors flex items-center justify-center gap-2">
-                    <Plus class="w-5 h-5" /> Tambah Tugas
-                </button>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" @click="isModalOpen = false"
+                            class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 bg-slate-100">Batal</button>
+                        <button type="submit" :disabled="isSubmitting"
+                            class="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 flex justify-center items-center">
+                            <Loader2 v-if="isSubmitting" class="w-4 h-4 animate-spin mr-1" /> Simpan Tugas
+                        </button>
+                    </div>
+                </form>
             </div>
         </div>
-        <CreateTaskModal :is-open="isModalOpen" @close="isModalOpen = false" />
-        <CreateBoardModal :is-open="isBoardModalOpen" @close="isBoardModalOpen = false" />
-    </section>
+
+    </div>
 </template>

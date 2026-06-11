@@ -14,11 +14,10 @@ export const useTaskStore = defineStore('task', () => {
     }
 
     // Fungsi baru: Mengambil daftar board dan mengurutkannya berdasarkan Position
-    const fetchBoards = async () => {
+    const fetchBoards = async (workspaceId: number) => {
         try {
-            // Pastikan endpoint ini sesuai dengan C# Anda (misal: /Board atau /Boards)
-            const response = await apiClient.get('/Board')
-            // Mengurutkan array agar TODO tampil pertama, lalu IN PROGRESS, dst
+            // Tembak endpoint GET Board berdasarkan Workspace ID tertentu
+            const response = await apiClient.get(`/Board/workspace/${workspaceId}`)
             boards.value = response.data.sort((a: any, b: any) => a.position - b.position)
         } catch (error) {
             console.error('Gagal mengambil data board:', error)
@@ -37,78 +36,130 @@ export const useTaskStore = defineStore('task', () => {
             isLoading.value = false
         }
     }
-    // Fungsi baru: Menambahkan tugas ke database
-    const addTask = async (taskData: { title: string, description: string, priority: string, boardId: number }) => {
-        try {
-            // Menembak endpoint POST ke .NET
-            await apiClient.post('/TaskItem', taskData)
 
-            // Setelah sukses menyimpan, kita 'refresh' (tarik ulang) data khusus untuk kolom tersebut
-            await fetchTasksByBoard(taskData.boardId)
-            return true // Mengembalikan nilai true jika sukses
+    const fetchBoardsAndTasks = async (workspaceId: number) => {
+        isLoading.value = true
+        try {
+            // 1. Ambil daftar kolom/board berdasarkan WorkspaceId dari backend .NET
+            const boardRes = await apiClient.get(`/Board/workspace/${workspaceId}`)
+            boards.value = boardRes.data
+
+            console.log("Boards yang diambil:", boards.value) // Debug: Pastikan data board benar
+
+            // Kosongkan map task lama agar tidak tercampur data project lain
+            tasksByBoard.value = {}
+
+            // 2. Lakukan looping untuk menembak fungsi 'fetchTasksByBoard' milik Anda secara otomatis
+            const taskPromises = boards.value.map(board => fetchTasksByBoard(board.id))
+
+            // Tunggu semua request task selesai diambil bersamaan (lebih cepat dibanding await satu-satu)
+            await Promise.all(taskPromises)
         } catch (error) {
-            console.error('Gagal menambahkan tugas:', error)
-            return false
+            console.error('Gagal memuat papan Kanban secara keseluruhan:', error)
+        } finally {
+            isLoading.value = false
+        }
+    }
+    // Fungsi baru: Menambahkan tugas ke database
+    const createTask = async (payload: { title: string; description: string; priority: string; dueDate: string | null; boardId: number }) => {
+        try {
+            await apiClient.post('/TaskItem', payload)
+            await fetchTasksByBoard(payload.boardId)
+        } catch (error) {
+            console.error('Gagal membuat tugas baru:', error)
+            throw error
         }
     }
 
     // Fungsi baru: Menambahkan Board/Kolom baru
-    const addBoard = async (title: string, position: number) => {
+    const addBoard = async (name: string, workspaceId: number) => {
         try {
+            await apiClient.post('/Board', {
+                Name: name,
+                WorkspaceId: workspaceId
+            });
 
-            // Asumsi default WorkspaceId adalah 1 (sesuaikan jika Anda sudah mengatur login multi-tenant)
-            const boardData = {
-                title: title,
-                position: position,
-                workspaceId: 1
-            }
-
-            await apiClient.post('/Board', boardData) // Pastikan endpoint ini sesuai dengan C# Anda
-
-            // Tarik ulang daftar board dari database agar UI langsung ter-update
-            await fetchBoards()
-            return true
+            // Refresh data boards dan tasks agar kolom baru langsung muncul di layar
+            await fetchBoardsAndTasks(workspaceId);
         } catch (error) {
-            console.error('Gagal menambahkan board:', error)
-            return false
+            console.error("Gagal menambahkan kolom baru:", error);
+            throw error;
         }
     }
 
     //update Task
     const updateTaskBoard = async (taskId: number, newBoardId: number) => {
-    try {
-      // 1. Ambil data tugas lama yang sedang aktif dari state untuk mempertahankan nilai title & description
-      if (!selectedTask.value) return false
+        try {
+            // 1. Ambil data tugas lama yang sedang aktif dari state untuk mempertahankan nilai title & description
+            if (!selectedTask.value) return false
 
-      const updatedData = {
-        id: taskId,
-        title: selectedTask.value.title,
-        description: selectedTask.value.description,
-        priority: selectedTask.value.priority,
-        createdAt: selectedTask.value.createdAt,
-        boardId: newBoardId, // Ganti dengan Board ID yang baru
-        assigneeId: selectedTask.value.assigneeId
-      }
+            const updatedData = {
+                id: taskId,
+                title: selectedTask.value.title,
+                description: selectedTask.value.description,
+                priority: selectedTask.value.priority,
+                createdAt: selectedTask.value.createdAt,
+                boardId: newBoardId, // Ganti dengan Board ID yang baru
+                assigneeId: selectedTask.value.assigneeId
+            }
 
-      // 2. Kirim perubahan ke backend .NET (Sesuaikan jika endpoint PUT Anda berbeda)
-      await apiClient.put(`/TaskItem/${taskId}`, updatedData)
+            // 2. Kirim perubahan ke backend .NET (Sesuaikan jika endpoint PUT Anda berbeda)
+            await apiClient.put(`/TaskItem/${taskId}`, updatedData)
 
-      // 3. Ambil data lama board asal untuk kita refresh di UI
-      const oldBoardId = selectedTask.value.boardId
+            // 3. Ambil data lama board asal untuk kita refresh di UI
+            const oldBoardId = selectedTask.value.boardId
 
-      // 4. Update data di memori lokal agar tidak perlu refresh halaman penuh
-      selectedTask.value.boardId = newBoardId
-      
-      // 5. Tarik ulang data tugas untuk kedua board terkait (board lama dan board baru)
-      await fetchTasksByBoard(oldBoardId)
-      await fetchTasksByBoard(newBoardId)
+            // 4. Update data di memori lokal agar tidak perlu refresh halaman penuh
+            selectedTask.value.boardId = newBoardId
 
-      return true
-    } catch (error) {
-      console.error('Gagal memindahkan tugas:', error)
-      return false
+            // 5. Tarik ulang data tugas untuk kedua board terkait (board lama dan board baru)
+            await fetchTasksByBoard(oldBoardId)
+            await fetchTasksByBoard(newBoardId)
+
+            return true
+        } catch (error) {
+            console.error('Gagal memindahkan tugas:', error)
+            return false
+        }
     }
-  }
+
+    const moveTask = async (taskId: number, fromBoardId: number, toBoardId: number) => {
+        // 1. Ambil array kolom asal dengan aman. Jika belum ada array-nya, default-kan ke array kosong.
+        const sourceList = tasksByBoard.value[fromBoardId] || [];
+
+        const taskIndex = sourceList.findIndex(t => (t.id || t.Id) === taskId);
+
+        if (taskIndex !== -1) {
+            // Jalankan splice pada objek array aman yang sudah divalidasi
+            const [movedTask] = sourceList.splice(taskIndex, 1);
+
+            // Perbarui properti BoardId penunjuk kolom baru
+            if (movedTask) {
+                if ('BoardId' in movedTask) movedTask.BoardId = toBoardId;
+                if ('boardId' in movedTask) movedTask.boardId = toBoardId;
+
+                // Amankan kolom tujuan, jika belum ada array-nya, buat baru
+                if (!tasksByBoard.value[toBoardId]) {
+                    tasksByBoard.value[toBoardId] = [];
+                }
+
+                // Dorong masuk kartu ke kolom baru
+                tasksByBoard.value[toBoardId].push(movedTask);
+            }
+        }
+
+        // 2. Tembak database .NET di latar belakang
+        try {
+            await apiClient.put(`/TaskItem/${taskId}/move`, {
+                NewBoardId: toBoardId
+            });
+        } catch (error) {
+            console.error("Gagal menyimpan posisi tugas di database:", error);
+            // Jika gagal, tarik ulang datanya sebagai rollback aman
+            await fetchTasksByBoard(fromBoardId);
+            await fetchTasksByBoard(toBoardId);
+        }
+    }
 
     return {
         boards,
@@ -117,9 +168,11 @@ export const useTaskStore = defineStore('task', () => {
         selectedTask,
         fetchBoards,
         fetchTasksByBoard,
-        selectTask,  
-        addTask,
+        fetchBoardsAndTasks,
+        selectTask,
+        createTask,
         addBoard,
-        updateTaskBoard
+        updateTaskBoard,
+        moveTask
     }
 })

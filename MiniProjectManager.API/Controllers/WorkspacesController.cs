@@ -43,19 +43,76 @@ namespace MiniProjectManager.API.Controllers
         }
 
         [HttpPost]
-        public async Task<IActionResult> Create([FromBody] WorkspaceResponseDto request)
+        public async Task<IActionResult> Create([FromBody] CreateWorkspaceDto dto)
         {
-            int UserId = GetUserId();
-            var newWorkspace = await _workspaceService.CreateWorkspace(request.Name, UserId);
+            if (string.IsNullOrWhiteSpace(dto.Name))
+                return BadRequest("Nama project tidak terbaca oleh server atau kosong.");
+                
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+            int currentUserId = int.Parse(userIdClaim);
 
-            var response = new WorkspaceResponseDto
+            // Kirim currentUserId ke service agar LeaderId dan UserId terisi dengan benar
+            var result = await _workspaceService.CreateWorkspace(dto.Name, currentUserId);
+            return Ok(result);
+        }
+
+        [HttpPost("{workspaceId}/members")]
+        public async Task<IActionResult> AddMember(int workspaceId, [FromBody] AddMemberRequestDto request)
+        {
+            try
             {
-                Id = newWorkspace.Id,
-                Name = newWorkspace.Name,
-                CreatedAt = newWorkspace.CreatedAt
-            };
+                var userIdClaim = GetUserId();
+                if (string.IsNullOrEmpty(userIdClaim.ToString())) return Unauthorized("User ID not found in token.");
 
-            return Created(String.Empty, response);
+                await _workspaceService.Addmember(workspaceId, request, userIdClaim);
+
+                return Ok(new { Message = "Member added successfully." });
+            }
+            catch (UnauthorizedAccessException ex)
+            {
+                return Forbid(ex.Message);
+            }
+            catch (ArgumentException ex)
+            {
+                return NotFound(ex.Message);
+            }
+            catch (InvalidOperationException ex)
+            {
+                return BadRequest(ex.Message);
+            }
+            catch (Exception ex)
+            {
+                return StatusCode(500, $"An error occurred: {ex.Message}");
+            }
+        }
+
+        [HttpGet("my-workspaces")]
+        public async Task<IActionResult> GetUserWorkspaces()
+        {
+            try
+            {
+                // Coba ambil menggunakan standar NameIdentifier
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+                // JIKA NULL, coba ambil menggunakan string "id" atau "nameid" manual (sering terjadi jika custom token generator)
+                if (string.IsNullOrEmpty(userIdClaim))
+                {
+                    userIdClaim = User.FindFirst("id")?.Value ?? User.FindFirst("nameid")?.Value;
+                }
+
+                if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized("Token tidak mengandung klaim ID User.");
+
+                int currentUserId = int.Parse(userIdClaim);
+
+                var workspaces = await _workspaceService.GetUserWorkspacesAsync(currentUserId);
+                return Ok(workspaces);
+            }
+            catch (Exception ex)
+            {
+                // Ubah sementara ke ex.Message agar Anda bisa melihat jika ada error parsing/konversi di terminal log
+                return StatusCode(500, $"Terjadi kesalahan internal: {ex.Message}");
+            }
         }
     }
 }

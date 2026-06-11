@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using MiniProjectManager.API.DTOs;
@@ -35,17 +36,25 @@ namespace MiniProjectManager.API.Controllers
         [HttpPost]
         public async Task<IActionResult> Create([FromBody] BoardResponseDto req)
         {
-            var newBoard = await _boardService.CreateBoard(req.Title, req.WorkspaceId, req.Position);
+            var userId = int.Parse(User.FindFirst(ClaimTypes.NameIdentifier)?.Value ?? "1");
 
-            var response = new BoardResponseDto
+            try
             {
-                Id = newBoard.Id,
-                Title = newBoard.Title,
-                Position = newBoard.Position,
-                WorkspaceId = newBoard.WorkspaceId
-            };
+                var newBoard = await _boardService.CreateBoard(req.Title, req.WorkspaceId);
+                return Ok(newBoard);
+            }
+            catch (Exception ex)
+            {
+                return BadRequest(new { message = ex.Message });
+            }
+        }
 
-            return Created(String.Empty, response);
+        [HttpGet("workspace/{workspaceId}")]
+        public async Task<IActionResult> GetBoardsByWorkspace(int workspaceId)
+        {
+            var boards = await _boardService.GetBoardsByWorkspace(workspaceId);
+
+            return Ok(boards);
         }
     }
 }
