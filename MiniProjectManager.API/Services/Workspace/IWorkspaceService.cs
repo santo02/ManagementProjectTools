@@ -15,5 +15,8 @@ namespace MiniProjectManager.API.Services
         Task<bool> IsLeaderAsync(int workspaceId, int userId);
 
         Task<IEnumerable<WorkspaceResponseDto>> GetUserWorkspacesAsync(int userId);
+
+        Task<WorkspaceResponseDto?> UpdateWorkspaceAsync(int id, string name, int userId);
+        Task<bool> DeleteWorkspaceAsync(int id, int userId);
     }
 }

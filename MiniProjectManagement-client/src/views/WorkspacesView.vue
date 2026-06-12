@@ -1,7 +1,7 @@
 <script setup lang="ts">
-import { onMounted, ref } from 'vue'
+import { onMounted, ref, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { FolderClosed, Plus, ArrowRight, MoreVertical, Clock, Loader2 } from 'lucide-vue-next'
+import { FolderClosed, Plus, ArrowRight, MoreVertical, Clock, Loader2, Pencil, Trash2, Check, X } from 'lucide-vue-next'
 import Sidebar from './components/Sidebar.vue' // Impor komponen Sidebar Anda
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import { useAuthStore } from '@/stores/authStore'
@@ -13,9 +13,23 @@ const router = useRouter()
 const isCreateModalOpen = ref(false)
 const newWorkspaceTitle = ref('')
 const isSubmitting = ref(false)
+const editingWorkspaceId = ref<number | null>(null)
+const editNameInput = ref('')
+const activeMenuId = ref<number | null>(null)
+
+const toggleMenu = (id: number) => {
+  activeMenuId.value = activeMenuId.value === id ? null : id
+}
+const closeAllMenus = () => {
+  activeMenuId.value = null
+}
 
 onMounted(async () => {
+  window.addEventListener('click', closeAllMenus)
   await workspaceStore.fetchWorkspace()
+})
+onUnmounted(() => {
+  window.removeEventListener('click', closeAllMenus) // Bersihkan event listener
 })
 
 const handleSelectWorkspace = (workspace: any) => {
@@ -46,6 +60,36 @@ const handleCreateWorkspace = async () => {
     console.error(error)
   } finally {
     isSubmitting.value = false
+  }
+}
+
+const startEdit = (workspace: any) => {
+  editingWorkspaceId.value = workspace.id || workspace.Id
+  editNameInput.value = workspace.name || workspace.Name
+}
+
+const cancelEdit = () => {
+  editingWorkspaceId.value = null
+  editNameInput.value = ''
+}
+const handleUpdateWorkspace = async (id: number) => {
+  if (!editNameInput.value.trim()) return
+  try {
+    await workspaceStore.updateWorkspace(id, editNameInput.value.trim())
+    editingWorkspaceId.value = null
+  } catch (err) {
+    alert("Gagal mengubah nama project")
+  }
+}
+
+const handleDeleteWorkspace = async (id: number, name: string) => {
+  // Standar industri: Berikan konfirmasi pop-up asli browser demi keamanan data
+  if (confirm(`Apakah Anda yakin ingin menghapus project "${name}" secara permanen?\nSemua data kolom dan tugas di dalamnya akan ikut terhapus.`)) {
+    try {
+      await workspaceStore.deleteWorkspace(id)
+    } catch (err) {
+      alert("Gagal menghapus project.")
+    }
   }
 }
 </script>
@@ -95,40 +139,92 @@ const handleCreateWorkspace = async () => {
         </div>
 
         <div v-else class="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <div v-for="(ws, index) in workspaceStore.workspaces" :key="ws.id"
-            class="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm flex flex-col justify-between h-64 relative group">
-            <div>
-              <div class="flex justify-between items-start mb-4">
-                <div class="p-3 bg-violet-50 text-violet-600 rounded-xl">
-                  <FolderClosed class="w-6 h-6" />
+          <div v-for="ws in workspaceStore.workspaces" :key="ws.id || ws.Id"
+            class="bg-white border border-slate-100 rounded-[24px] p-6 shadow-sm hover:shadow-md transition-all relative flex flex-col justify-between min-h-[180px]">
+
+            <div class="flex justify-between items-start gap-4 mb-4">
+
+              <div class="flex gap-3 w-full min-w-0">
+                <div
+                  class="w-12 h-12 rounded-xl bg-violet-50 text-violet-600 flex items-center justify-center shrink-0">
+                  <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                      d="M3 7v10a2 2 0 002 2h14a2 2 0 002-2V9a2 2 0 00-2-2h-6l-2-2H5a2 2 0 00-2 2z" />
+                  </svg>
                 </div>
+
+                <div class="flex-1 min-w-0">
+                  <div v-if="editingWorkspaceId === (ws.id || ws.Id)" class="flex items-center gap-1.5 w-full">
+                    <input v-model="editNameInput" @click.stop @keyup.enter="handleUpdateWorkspace(ws.id || ws.Id)"
+                      type="text"
+                      class="w-full bg-slate-50 border border-slate-200 rounded-lg px-2.5 py-1.5 text-xs font-bold text-slate-800 outline-none ring-2 ring-violet-500"
+                      autofocus />
+                    <button @click.stop="handleUpdateWorkspace(ws.id || ws.Id)"
+                      class="p-1.5 bg-violet-600 text-white rounded-lg hover:bg-violet-700 transition-all shrink-0">
+                      <Check class="w-3 h-3" />
+                    </button>
+                    <button @click.stop="cancelEdit"
+                      class="p-1.5 bg-slate-100 text-slate-400 rounded-lg hover:bg-slate-200 transition-all shrink-0">
+                      <X class="w-3 h-3" />
+                    </button>
+                  </div>
+
+                  <div v-else>
+                    <h3 class="text-base font-extrabold text-slate-800 tracking-tight line-clamp-1 mb-1">
+                      {{ ws.name || ws.Name }}
+                    </h3>
+                    <p class="text-[11px] text-slate-400 font-medium flex items-center gap-1">
+                      <Check class="w-3 h-3 text-slate-300" />
+                      Leader: <span class="text-slate-600 font-semibold capitalize">{{ ws.creatorName }}</span>
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="relative shrink-0 flex items-center gap-2">
                 <span
-                  :class="['text-[10px] font-bold px-3 py-1 rounded-full uppercase tracking-wider', index === 0 ? 'bg-orange-50 text-orange-600' : 'bg-slate-100 text-slate-600']">
-                  {{ index === 0 ? 'Urgent' : 'In Progress' }}
+                  class="text-[9px] font-extrabold px-2.5 py-1 rounded-full uppercase tracking-wider bg-amber-50 text-amber-600 hidden sm:block">
+                  Urgent
                 </span>
-              </div>
-              <h3 class="text-lg font-bold text-slate-900 line-clamp-1 mb-1">{{ ws.name }}</h3>
-              <div class="flex items-center gap-1.5 text-xs font-medium text-slate-400">
-                <Clock class="w-3.5 h-3.5" />
-                <span>Leader ID: <strong class="text-slate-600">{{ ws.leaderId }}</strong></span>
+                <button @click.stop="toggleMenu(ws.id || ws.Id)"
+                  class="p-1 text-slate-400 hover:text-slate-700 hover:bg-slate-50 rounded-lg transition-all">
+                  <MoreVertical class="w-5 h-5" />
+                </button>
+
+                <Transition name="pop">
+                  <div v-if="activeMenuId === (ws.id || ws.Id)"
+                    class="absolute right-0 top-8 mt-1 w-36 bg-white border border-slate-100 rounded-xl shadow-lg z-20 py-1 overflow-hidden">
+                    <button @click.stop="startEdit(ws); activeMenuId = null"
+                      class="w-full text-left px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 flex items-center gap-2">
+                      <Pencil class="w-3.5 h-3.5 text-amber-500" /> Edit Proyek
+                    </button>
+                    <button @click.stop="handleDeleteWorkspace(ws.id || ws.Id, ws.name || ws.Name); activeMenuId = null"
+                      class="w-full text-left px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 flex items-center gap-2 border-t border-slate-50">
+                      <Trash2 class="w-3.5 h-3.5" /> Hapus Proyek
+                    </button>
+                  </div>
+                </Transition>
               </div>
             </div>
 
-            <div class="space-y-1.5 my-2">
-              <div class="flex justify-between text-xs font-bold"><span
-                  class="text-slate-400 text-[10px]">Progres</span><span class="text-violet-600">65%</span></div>
-              <div class="w-full bg-slate-100 h-2 rounded-full overflow-hidden">
-                <div class="bg-violet-600 h-full w-[65%] rounded-full"></div>
+            <div class="mt-2 pt-4 border-t border-slate-100 flex justify-between items-end">
+              <div class="flex gap-8 text-[10px] font-semibold">
+                <div class="space-y-1.5">
+                  <span class="text-slate-400 block font-bold uppercase tracking-wider text-[9px]">Status</span>
+                  <div class="flex items-center gap-1.5 text-slate-700">
+                    <span class="w-1.5 h-1.5 rounded-full bg-amber-500"></span>
+                    <span>In Progress</span>
+                  </div>
+                </div>
+                <div class="space-y-1.5">
+                  <span class="text-slate-400 block font-bold uppercase tracking-wider text-[9px]">Deadline</span>
+                  <span class="text-slate-700 block">12 Okt 2026</span>
+                </div>
               </div>
-            </div>
 
-            <div class="border-t border-slate-50 pt-4 flex justify-between items-center">
-              <div><span class="block text-[10px] uppercase font-bold text-slate-300">Deadline</span><span
-                  class="text-xs font-semibold text-slate-600">12 Okt 2026</span></div>
               <button @click="handleSelectWorkspace(ws)"
-                class="flex items-center gap-1.5 text-xs font-bold text-violet-600 hover:text-violet-700">
-                <span>Buka Project</span>
-                <ArrowRight class="w-4 h-4" />
+                class="text-xs font-bold text-violet-600 hover:text-violet-700 transition-all pb-0.5 flex items-center gap-1">
+                Buka Project <span>&rarr;</span>
               </button>
             </div>
           </div>
@@ -185,3 +281,15 @@ const handleCreateWorkspace = async () => {
 
   </div>
 </template>
+<style scoped>
+.pop-enter-active,
+.pop-leave-active {
+  transition: transform 0.15s ease-out, opacity 0.15s ease-out;
+}
+
+.pop-enter-from,
+.pop-leave-to {
+  transform: scale(0.95) translateY(-5px);
+  opacity: 0;
+}
+</style>

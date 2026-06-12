@@ -16,7 +16,6 @@ export const useTaskStore = defineStore('task', () => {
     // Fungsi baru: Mengambil daftar board dan mengurutkannya berdasarkan Position
     const fetchBoards = async (workspaceId: number) => {
         try {
-            // Tembak endpoint GET Board berdasarkan Workspace ID tertentu
             const response = await apiClient.get(`/Board/workspace/${workspaceId}`)
             boards.value = response.data.sort((a: any, b: any) => a.position - b.position)
         } catch (error) {
@@ -40,19 +39,14 @@ export const useTaskStore = defineStore('task', () => {
     const fetchBoardsAndTasks = async (workspaceId: number) => {
         isLoading.value = true
         try {
-            // 1. Ambil daftar kolom/board berdasarkan WorkspaceId dari backend .NET
             const boardRes = await apiClient.get(`/Board/workspace/${workspaceId}`)
             boards.value = boardRes.data
 
-            console.log("Boards yang diambil:", boards.value) // Debug: Pastikan data board benar
+            console.log("Boards yang diambil:", boards.value) 
 
-            // Kosongkan map task lama agar tidak tercampur data project lain
             tasksByBoard.value = {}
-
-            // 2. Lakukan looping untuk menembak fungsi 'fetchTasksByBoard' milik Anda secara otomatis
             const taskPromises = boards.value.map(board => fetchTasksByBoard(board.id))
 
-            // Tunggu semua request task selesai diambil bersamaan (lebih cepat dibanding await satu-satu)
             await Promise.all(taskPromises)
         } catch (error) {
             console.error('Gagal memuat papan Kanban secara keseluruhan:', error)
@@ -61,7 +55,7 @@ export const useTaskStore = defineStore('task', () => {
         }
     }
     // Fungsi baru: Menambahkan tugas ke database
-    const createTask = async (payload: { title: string; description: string; priority: string; dueDate: string | null; boardId: number }) => {
+    const createTask = async (payload: { title: string; description: string; priority: string; category: string; dueDate: string | null; boardId: number }) => {
         try {
             await apiClient.post('/TaskItem', payload)
             await fetchTasksByBoard(payload.boardId)

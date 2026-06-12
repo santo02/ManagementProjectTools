@@ -50,6 +50,34 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         }
     }
 
+    const updateWorkspace = async (id: number, newName: string) => {
+        try {
+            // Sinkron dengan DTO backend .NET (Menggunakan 'Name' kapital)
+            const response = await apiClient.put(`/Workspace/${id}`, {
+                Name: newName
+            })
+
+            // Refresh daftar workspace lokal setelah berhasil diedit
+            await fetchWorkspace()
+            return response.data
+        } catch (error) {
+            console.error("Gagal memperbarui workspace:", error)
+            throw error
+        }
+    }
+
+    const deleteWorkspace = async (id: number) => {
+        try {
+            await apiClient.delete(`/Workspace/${id}`)
+
+            // Refresh list setelah dihapus
+            await fetchWorkspace()
+        } catch (error) {
+            console.error("Gagal menghapus workspace:", error)
+            throw error
+        }
+    }
+
     return {
         workspaces,
         currentWorkspace,
@@ -58,6 +86,8 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         fetchWorkspace,
         setActiveWorkspace,
         addMemberToWorkspace,
-        createWorkspace
+        createWorkspace,
+        updateWorkspace,
+        deleteWorkspace
     }
 })

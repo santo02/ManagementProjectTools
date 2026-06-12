@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using MiniProjectManager.API.Data;
 
@@ -10,9 +11,11 @@ using MiniProjectManager.API.Data;
 namespace MiniProjectManager.API.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    partial class AppDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260612172227_UpdateWorkspaceColumns")]
+    partial class UpdateWorkspaceColumns
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder.HasAnnotation("ProductVersion", "10.0.8");
@@ -51,9 +54,6 @@ namespace MiniProjectManager.API.Migrations
 
                     b.Property<int>("BoardId")
                         .HasColumnType("INTEGER");
-
-                    b.Property<string>("Category")
-                        .HasColumnType("TEXT");
 
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");

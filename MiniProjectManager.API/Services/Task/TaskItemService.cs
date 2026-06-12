@@ -21,6 +21,7 @@ namespace MiniProjectManager.API.Services
                 Title = dto.Title,
                 Description = dto.Description,
                 Priority = dto.Priority,
+                Category = dto.Category,
                 // Progress = 0, 
                 // DueDate = dto.DueDate,
                 BoardId = dto.BoardId,
@@ -37,6 +38,7 @@ namespace MiniProjectManager.API.Services
                 Title = task.Title,
                 Description = task.Description,
                 Priority = task.Priority,
+                Category = task.Category,
                 // Progress = task.Progress,
                 // DueDate = task.DueDate,
                 BoardId = task.BoardId
@@ -55,6 +57,7 @@ namespace MiniProjectManager.API.Services
                      Priority = t.Priority,
                      //  Progress = t.Progress,
                      //  DueDate = t.DueDate,
+                     Category = t.Category,
                      BoardId = t.BoardId
                  })
                  .ToListAsync();
@@ -86,6 +89,7 @@ namespace MiniProjectManager.API.Services
             task.Description = req.Description;
             task.BoardId = req.BoardId;
             task.AssigneeId = req.AssigneeId;
+            task.Category = req.Category;
 
             await _context.SaveChangesAsync();
 

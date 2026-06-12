@@ -1,4 +1,6 @@
 
+using System.ComponentModel.DataAnnotations.Schema;
+
 namespace MiniProjectManager.API.Entities
 {
     public class Workspace { 
@@ -11,6 +13,7 @@ namespace MiniProjectManager.API.Entities
         public ICollection<Board> Boards { get; set; } = new List<Board>();
 
         public int UserId {get; set;}
+        [ForeignKey("UserId")]
         public User? User { get; set; }
     }
 

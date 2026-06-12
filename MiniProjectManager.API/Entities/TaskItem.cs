@@ -8,6 +8,8 @@ namespace MiniProjectManager.API.Entities
         public DateTime CreatedAt { get; set; }
         public string Priority { get; set; } = "Low";
 
+        public string? Category { get; set; }
+
         //Board
         public int BoardId {get; set;}
         public Board? Board{get; set;}

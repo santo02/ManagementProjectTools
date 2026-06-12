@@ -30,6 +30,7 @@ const descInput = ref('')
 const priorityInput = ref('Normal')
 const dueDateInput = ref('')
 const isSubmitting = ref(false)
+const categoryInput = ref('Dev')
 
 const handleAddTask = async () => {
     if (!titleInput.value.trim()) return
@@ -39,27 +40,28 @@ const handleAddTask = async () => {
             title: titleInput.value,
             description: descInput.value,
             priority: priorityInput.value,
+            category: categoryInput.value,
             dueDate: dueDateInput.value ? new Date(dueDateInput.value).toISOString() : null,
             boardId: props.boardId
         })
         // Reset Form
         titleInput.value = ''
         descInput.value = ''
+        categoryInput.value = 'Dev'
         priorityInput.value = 'Normal'
         dueDateInput.value = ''
         isModalOpen.value = false
-    } catch (err) {
-        console.error(err)
-    } finally {
-        isSubmitting.value = false
-    }
+    } catch (err) { console.error(err) } finally { isSubmitting.value = false }
 }
 
 // Fungsi pembantu warna badge prioritas dinamis dari .NET string
 const getPriorityClass = (priority: string) => {
-    if (priority === 'High' || priority === 'Tinggi') return 'bg-rose-50 text-rose-600'
-    if (priority === 'Normal') return 'bg-amber-50 text-amber-600'
-    return 'bg-slate-50 text-slate-600'
+    const styles: Record<string, string> = {
+        'High': 'bg-red-50 text-red-600 border border-red-100',
+        'Normal': 'bg-amber-50 text-amber-600 border border-amber-100',
+        'Low': 'bg-sky-50 text-sky-600 border border-sky-100'
+    };
+    return styles[priority] || 'bg-slate-50 text-slate-500 border border-slate-100';
 }
 
 const onDragStart = (event: DragEvent, task: any, fromBoardId: number) => {
@@ -83,6 +85,17 @@ const onDrop = async (event: DragEvent, toBoardId: number) => {
         await taskStore.moveTask(taskId, fromBoardId, toBoardId);
     }
 }
+
+const getCategoryStyle = (category: string) => {
+    const styles: Record<string, string> = {
+        'Design': 'bg-pink-100 text-pink-700',
+        'Dev': 'bg-blue-100 text-blue-700',
+        'Bug': 'bg-rose-100 text-rose-700',
+        'Testing': 'bg-amber-100 text-amber-700',
+        'Konten': 'bg-emerald-100 text-emerald-700'
+    };
+    return styles[category] || 'bg-slate-100 text-slate-600';
+};
 </script>
 <template>
     <div class="w-80 flex flex-col shrink-0 max-h-full">
@@ -103,33 +116,26 @@ const onDrop = async (event: DragEvent, toBoardId: number) => {
             <template v-if="tasks && tasks.length > 0">
                 <div v-for="task in tasks" :key="task.id" @click="emit('select-task', task)" draggable="true"
                     @dragstart="onDragStart($event, task, boardId)"
-                    class="bg-white border border-slate-100/80 rounded-[20px] p-5 shadow-sm hover:shadow-md hover:border-slate-200 transition-all cursor-pointer relative group active:scale-95 active:shadow-sm duration-150">
+                    class="bg-white border border-slate-100/80 rounded-[20px] p-5 shadow-sm hover:shadow-md transition-all cursor-pointer group active:scale-95 duration-150">
 
-                    <div class="flex justify-between items-center mb-2.5">
+                    <div class="flex items-center gap-2 mb-3">
                         <span
-                            :class="['text-[9px] font-extrabold uppercase tracking-wider px-2.5 py-0.5 rounded-full', getPriorityClass(task.priority || task.Priority)]">
-                            {{ task.priority || task.Priority }}
+                            :class="['text-[9px] font-extrabold uppercase tracking-wider px-2 py-0.5 rounded-md', getCategoryStyle(task.category)]">
+                            {{ task.category || 'General' }}
+                        </span>
+                        <span
+                            :class="['text-[9px] font-bold px-2 py-0.5 rounded-md uppercase tracking-wider', getPriorityClass(task.priority)]">
+                            {{ task.priority }}
                         </span>
                     </div>
+
                     <h4
                         class="text-sm font-bold text-slate-800 line-clamp-1 mb-1 group-hover:text-violet-600 transition-colors">
-                        {{ task.title || task.Title }}
+                        {{ task.title }}
                     </h4>
                     <p class="text-xs text-slate-400 font-medium line-clamp-2 mb-4 leading-relaxed">
-                        {{ task.description || task.Description || 'No description.' }}
+                        {{ task.description || 'No description.' }}
                     </p>
-
-                    <!-- <div
-                        class="border-t border-slate-50 pt-3 flex justify-between items-center text-[11px] font-semibold text-slate-400">
-                        <div class="flex items-center gap-1">
-                            <Calendar class="w-3.5 h-3.5 text-slate-300" />
-                            <span>{{ task.dueDate ? new Date(task.dueDate).toLocaleDateString('id-ID', {
-                                day: 'numeric',
-                                month: 'short' }) : '-' }}</span>
-                        </div>
-                        <img class="h-5 w-5 rounded-full object-cover"
-                            src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=60" />
-                    </div> -->
                 </div>
             </template>
 
@@ -179,6 +185,18 @@ const onDrop = async (event: DragEvent, toBoardId: number) => {
                             <input v-model="dueDateInput" type="date"
                                 class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl py-2 px-3 text-xs outline-none" />
                         </div>
+                    </div>
+                    <div>
+                        <label
+                            class="text-[10px] font-bold text-slate-400 uppercase tracking-wider block mb-1">Kategori</label>
+                        <select v-model="categoryInput"
+                            class="w-full bg-slate-50 ring-1 ring-slate-200 rounded-xl py-2 px-3 text-xs outline-none">
+                            <option value="Dev">Dev</option>
+                            <option value="Design">Design</option>
+                            <option value="Bug">Bug</option>
+                            <option value="Testing">Testing</option>
+                            <option value="Konten">Konten</option>
+                        </select>
                     </div>
 
                     <div class="flex gap-2 pt-2">

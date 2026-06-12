@@ -9,6 +9,7 @@ namespace MiniProjectManager.API.DTOs
         public int? AssigneeId { get; set; }
 
         public string Priority { get; set; } = string.Empty;
+        public string? Category { get; set; } = string.Empty;
     }
 
     public class TaskItemResponseDto
@@ -18,6 +19,7 @@ namespace MiniProjectManager.API.DTOs
         public string Description { get; set; } = string.Empty;
         public DateTime CreatedAt { get; set; }
         public string Priority { get; set; } = string.Empty;
+        public string? Category { get; set; } = string.Empty;
 
         public int BoardId { get; set; }
         public string BoardTitle { get; set; } = string.Empty;
@@ -32,6 +34,7 @@ namespace MiniProjectManager.API.DTOs
         public string Title { get; set; } = string.Empty;
         public string Description { get; set; } = string.Empty;
         public string Priority { get; set; } = string.Empty;
+        public string? Category { get; set; } = string.Empty;
 
         public int BoardId { get; set; }
         public int? AssigneeId { get; set; }
