@@ -175,5 +175,30 @@ namespace MiniProjectManager.API.Services
             await _context.SaveChangesAsync();
             return true;
         }
+
+        public async Task<bool> AddMemberByUsernameAsync(int workspaceId, string username)
+        {
+            var targetUser = await _context.Users
+                .FirstOrDefaultAsync(u => u.Username.ToLower() == username.ToLower());
+
+            if (targetUser == null) return false; 
+
+            var isAlreadyMember = await _context.WorkspaceMembers
+                .AnyAsync(wm => wm.WorkspaceId == workspaceId && wm.UserId == targetUser.Id);
+
+            if (isAlreadyMember) return true; 
+
+            var newMember = new WorkspaceMember
+            {
+                WorkspaceId = workspaceId,
+                UserId = targetUser.Id,
+                Role = "Member",
+                JoinedAt = DateTime.UtcNow
+            };
+
+            _context.WorkspaceMembers.Add(newMember);
+            await _context.SaveChangesAsync();
+            return true;
+        }
     }
 }

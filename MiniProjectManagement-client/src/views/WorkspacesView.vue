@@ -104,9 +104,9 @@ const handleDeleteWorkspace = async (id: number, name: string) => {
         <div class="flex items-center gap-6">
           <span class="text-sm font-bold text-slate-800">Project Management</span>
           <div class="flex gap-4 text-xs font-semibold text-slate-400 border-l border-slate-200 pl-6">
-            <span class="text-violet-600 border-b-2 border-violet-600 pb-1 cursor-pointer">Overview</span>
+            <span class="text-violet-600 border-b-2 border-violet-600 pb-1 cursor-pointer"  @click="router.push('/workspaces')">Overview</span>
             <span class="hover:text-slate-600 cursor-pointer" @click="router.push('/dashboard')">Board</span>
-            <span class="hover:text-slate-600 cursor-pointer">List</span>
+            <span class="hover:text-slate-600 cursor-pointer"  @click="router.push('/list')">List</span>
             <span class="hover:text-slate-600 cursor-pointer">Timeline</span>
           </div>
         </div>

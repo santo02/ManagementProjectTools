@@ -9,7 +9,7 @@ namespace MiniProjectManager.API.Entities
         public int UserId { get; set; }
         public User? User { get; set; } 
 
-        public string Role { get; set; } = "Member"; // Default role is "Member"
+        public string Role { get; set; } = "Member"; 
         public DateTime JoinedAt { get; set; } = DateTime.UtcNow;
     }
 }

@@ -2,11 +2,13 @@
 import { useAuthStore } from '@/stores/authStore'
 import { useWorkspaceStore } from '@/stores/workspaceStore'
 import {
-    LayoutDashboard, FolderClosed, CheckSquare, Calendar, Settings, Plus
+    LayoutDashboard, FolderClosed, CheckSquare, Calendar, Settings, Plus, LogOut, User as UserIcon
 } from 'lucide-vue-next'
+import { ref, onMounted, onUnmounted } from 'vue'
 
 const authStore = useAuthStore()
 const workspaceStore = useWorkspaceStore()
+const isProfileOpen = ref(false)
 
 defineProps({
     showNewProjectButton: {
@@ -16,6 +18,16 @@ defineProps({
 })
 
 defineEmits(['open-create-modal'])
+
+const closeProfile = (e: MouseEvent) => {
+    const target = e.target as HTMLElement
+    if (!target.closest('.profile-container')) {
+        isProfileOpen.value = false
+    }
+}
+
+onMounted(() => window.addEventListener('click', closeProfile))
+onUnmounted(() => window.removeEventListener('click', closeProfile))
 </script>
 <template>
     <aside class="w-64 bg-white border-r border-slate-100 flex flex-col justify-between shrink-0 h-screen">
@@ -36,11 +48,11 @@ defineEmits(['open-create-modal'])
                     <FolderClosed class="w-5 h-5" />
                     <span class="text-sm">Projects</span>
                 </RouterLink>
-                <a href="#"
-                    class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 font-medium rounded-2xl transition-all">
+                <RouterLink to="/list"
+                    class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 font-medium rounded-2xl transition-all" active-class="bg-violet-50 text-violet-600 font-semibold">
                     <CheckSquare class="w-5 h-5" />
                     <span class="text-sm">Tasks</span>
-                </a>
+                </RouterLink>
                 <a href="#"
                     class="flex items-center gap-3 px-4 py-3 text-slate-500 hover:bg-slate-50 font-medium rounded-2xl transition-all">
                     <Calendar class="w-5 h-5" />
@@ -60,16 +72,33 @@ defineEmits(['open-create-modal'])
                 <Plus class="w-4 h-4" /> New Project
             </button>
 
-            <div class="flex items-center gap-3 px-2 py-2">
-                <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
-                    class="w-10 h-10 rounded-full object-cover border-2 border-slate-100" alt="Avatar" />
-                <div>
-                    <h4 class="text-sm font-bold text-slate-800">{{ authStore.user?.Username || 'Alex Rivera' }}</h4>
-                    <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Administrator</p>
+            <div class="relative profile-container">
+                <div @click.stop="isProfileOpen = !isProfileOpen"
+                    class="flex items-center gap-3 px-2 py-2 cursor-pointer hover:bg-slate-50 rounded-xl transition-all">
+                    <img src="https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=100&auto=format&fit=crop"
+                        class="w-10 h-10 rounded-full object-cover border-2 border-slate-100" alt="Avatar" />
+                    <div>
+                        <h4 class="text-sm font-bold text-slate-800">{{ authStore.user?.Username || 'Alex Rivera' }}
+                        </h4>
+                        <p class="text-[11px] font-medium text-slate-400 uppercase tracking-wider">Administrator</p>
+                    </div>
                 </div>
+
+                <Transition name="fade">
+                    <div v-if="isProfileOpen"
+                        class="absolute bottom-full left-0 mb-3 w-full bg-white border border-slate-100 rounded-2xl shadow-xl z-50 p-2 animate-in fade-in slide-in-from-bottom-4">
+                        <button
+                            class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-slate-600 hover:bg-slate-50 rounded-lg transition-all">
+                            <UserIcon class="w-4 h-4" /> My Profile
+                        </button>
+                        <button @click="authStore.logout"
+                            class="w-full flex items-center gap-3 px-4 py-2.5 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-lg transition-all border-t border-slate-50">
+                            <LogOut class="w-4 h-4" /> Logout
+                        </button>
+                    </div>
+                </Transition>
             </div>
         </div>
-
     </aside>
 
 </template>

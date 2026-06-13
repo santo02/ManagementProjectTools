@@ -18,5 +18,6 @@ namespace MiniProjectManager.API.Services
 
         Task<WorkspaceResponseDto?> UpdateWorkspaceAsync(int id, string name, int userId);
         Task<bool> DeleteWorkspaceAsync(int id, int userId);
+        Task<bool> AddMemberByUsernameAsync(int workspaceId, string username);
     }
 }

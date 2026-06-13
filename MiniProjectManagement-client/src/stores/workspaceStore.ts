@@ -78,6 +78,18 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         }
     }
 
+    const inviteMemberToWorkspace = async (workspaceId: number, username: string) => {
+        try {
+            const response = await apiClient.post(`/Workspace/${workspaceId}/members`, {
+                Username: username 
+            });
+            return response.data;
+        } catch (error: any) {
+            const errorMessage = error.response?.data?.message || "Gagal mengundang anggota.";
+            throw new Error(errorMessage);
+        }
+    }
+
     return {
         workspaces,
         currentWorkspace,
@@ -88,6 +100,7 @@ export const useWorkspaceStore = defineStore('workspace', () => {
         addMemberToWorkspace,
         createWorkspace,
         updateWorkspace,
-        deleteWorkspace
+        deleteWorkspace,
+        inviteMemberToWorkspace
     }
 })

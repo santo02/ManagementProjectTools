@@ -23,6 +23,12 @@ const selectedTask = ref<any>(null)
 const isAddingBoard = ref(false)
 const newBoardName = ref('')
 
+const isInviteModalOpen = ref(false)
+const inviteUsernameInput = ref('')
+const isInviting = ref(false)
+const inviteErrorMessage = ref('')
+const inviteSuccessMessage = ref('')
+
 const handleOpenDetail = (task: any) => {
     selectedTask.value = task
     isDetailOpen.value = true
@@ -90,6 +96,32 @@ const handleCreateBoard = async () => {
         alert("Gagal membuat kolom baru")
     }
 }
+
+const handleInviteMember = async () => {
+    if (!inviteUsernameInput.value.trim() || !workspaceStore.currentWorkspace) return
+
+    isInviting.value = true
+    inviteErrorMessage.value = ''
+    inviteSuccessMessage.value = ''
+
+    const currentWsId = workspaceStore.currentWorkspace.id || workspaceStore.currentWorkspace.Id
+
+    try {
+        const result = await workspaceStore.inviteMemberToWorkspace(currentWsId, inviteUsernameInput.value.trim())
+        inviteSuccessMessage.value = result.message || "Anggota berhasil ditambahkan!"
+        inviteUsernameInput.value = ''
+
+        setTimeout(() => {
+            isInviteModalOpen.value = false
+            inviteSuccessMessage.value = ''
+        }, 1500)
+    } catch (error: any) {
+        inviteErrorMessage.value = error.message || "Terjadi kesalahan sistem."
+    } finally {
+        isInviting.value = false
+    }
+}
+
 </script>
 
 <template>
@@ -136,7 +168,7 @@ const handleCreateBoard = async () => {
                         class="p-2 bg-slate-50 text-slate-500 border border-slate-100 rounded-xl hover:bg-slate-100 transition-all">
                         <SlidersHorizontal class="w-4 h-4" />
                     </button>
-                    <button
+                    <button @click="isInviteModalOpen = true"
                         class="flex items-center gap-1.5 bg-violet-600 hover:bg-violet-700 text-white text-xs font-bold px-4 py-2.5 rounded-xl transition-all shadow-sm shadow-violet-100">
                         <UserPlus class="w-3.5 h-3.5" /> Undang Tim
                     </button>
@@ -146,15 +178,18 @@ const handleCreateBoard = async () => {
             <div
                 class="px-8 py-3.5 bg-white border-b border-slate-100 flex flex-wrap justify-between items-center gap-4 shrink-0">
                 <div class="flex gap-5 text-xs font-bold text-slate-400">
-                    <span class="hover:text-slate-600 cursor-pointer flex items-center gap-1.5 py-1">
+                    <span class="hover:text-slate-600 cursor-pointer flex items-center gap-1.5 py-1"
+                        @click="router.push('/workspaces')">
                         <BarChart3 class="w-3.5 h-3.5" /> Overview
                     </span>
                     <span
-                        class="text-violet-600 border-b-2 border-violet-600 pb-3 cursor-pointer flex items-center gap-1.5">
-                        <LayoutGrid class="w-3.5 h-3.5" /> Papan Kanban
+                        class="text-violet-600 border-b-2 border-violet-600 pb-3 cursor-pointer flex items-center gap-1.5"
+                        @click="router.push('/dashboard')">
+                        <LayoutGrid class="w-3.5 h-3.5" /> Board
                     </span>
-                    <span class="hover:text-slate-600 cursor-pointer flex items-center gap-1.5 py-1">
-                        <ListFilter class="w-3.5 h-3.5" /> Daftar List
+                    <span class="hover:text-slate-600 cursor-pointer flex items-center gap-1.5 py-1"
+                        @click="router.push('/list')">
+                        <ListFilter class="w-3.5 h-3.5" /> List
                     </span>
                 </div>
 
@@ -163,7 +198,7 @@ const handleCreateBoard = async () => {
                     <div class="flex items-center gap-1.5">
                         <ListTodo class="w-4 h-4 text-violet-500" />
                         Total Tugas: <span class="text-slate-800 text-xs font-extrabold">{{ getTotalTasksCount()
-                            }}</span>
+                        }}</span>
                     </div>
                     <div class="h-4 w-[1px] bg-slate-200"></div>
                     <div class="flex items-center gap-2">
@@ -271,5 +306,47 @@ const handleCreateBoard = async () => {
         </div>
 
         <TaskDetail :is-open="isDetailOpen" :task="selectedTask" @close="isDetailOpen = false" />
+        <div v-if="isInviteModalOpen" class="fixed inset-0 z-50 flex items-center justify-center p-4">
+            <div class="absolute inset-0 bg-slate-900/30 backdrop-blur-sm" @click="isInviteModalOpen = false"></div>
+
+            <div
+                class="relative bg-white w-full max-w-sm rounded-[24px] p-6 z-10 shadow-xl space-y-4 animate-in fade-in zoom-in-95 duration-150">
+                <div>
+                    <h3 class="text-base font-bold text-slate-900">Undang Anggota Tim</h3>
+                    <p class="text-xs text-slate-400 font-medium mt-0.5">Masukkan nama pengguna akun rekan kerja Anda
+                        untuk
+                        digabungkan ke proyek ini.</p>
+                </div>
+
+                <form @submit.prevent="handleInviteMember" class="space-y-3">
+                    <div>
+                        <input v-model="inviteUsernameInput" type="text"
+                            placeholder="Ketik Username rekan (misal: budi)" required :disabled="isInviting"
+                            class="w-full bg-slate-50 border-none ring-1 ring-slate-200 rounded-xl py-2.5 px-4 text-xs focus:ring-2 focus:ring-violet-500 outline-none font-semibold text-slate-700" />
+                    </div>
+
+                    <p v-if="inviteErrorMessage"
+                        class="text-[11px] font-bold text-rose-500 bg-rose-50 px-3 py-1.5 rounded-lg border border-rose-100">
+                        ⚠️ {{ inviteErrorMessage }}
+                    </p>
+                    <p v-if="inviteSuccessMessage"
+                        class="text-[11px] font-bold text-emerald-600 bg-emerald-50 px-3 py-1.5 rounded-lg border border-emerald-100 flex items-center gap-1">
+                        <Check class="w-3.5 h-3.5" /> {{ inviteSuccessMessage }}
+                    </p>
+
+                    <div class="flex gap-2 pt-2">
+                        <button type="button" @click="isInviteModalOpen = false" :disabled="isInviting"
+                            class="flex-1 py-2 rounded-xl text-xs font-bold text-slate-500 bg-slate-100 hover:bg-slate-200 transition-colors">
+                            Batal
+                        </button>
+                        <button type="submit" :disabled="isInviting || !inviteUsernameInput.trim()"
+                            class="flex-1 py-2 rounded-xl text-xs font-bold text-white bg-violet-600 hover:bg-violet-700 disabled:opacity-50 flex justify-center items-center shadow-md shadow-violet-100 transition-colors">
+                            <Loader2 v-if="isInviting" class="w-4 h-4 animate-spin mr-1" />
+                            Kirim Undangan
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
     </div>
 </template>

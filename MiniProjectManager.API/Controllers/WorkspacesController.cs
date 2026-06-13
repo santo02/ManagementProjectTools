@@ -93,31 +93,31 @@ namespace MiniProjectManager.API.Controllers
             }
         }
 
-            [HttpGet("my-workspaces")]
-            public async Task<IActionResult> GetUserWorkspaces()
+        [HttpGet("my-workspaces")]
+        public async Task<IActionResult> GetUserWorkspaces()
+        {
+            try
             {
-                try
+                // Coba ambil menggunakan standar NameIdentifier
+                var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+                if (string.IsNullOrEmpty(userIdClaim))
                 {
-                    // Coba ambil menggunakan standar NameIdentifier
-                    var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
-                    if (string.IsNullOrEmpty(userIdClaim))
-                    {
-                        userIdClaim = User.FindFirst("id")?.Value ?? User.FindFirst("nameid")?.Value;
-                    }
-
-                    if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized("Token tidak mengandung klaim ID User.");
-
-                    int currentUserId = int.Parse(userIdClaim);
-
-                    var workspaces = await _workspaceService.GetUserWorkspacesAsync(currentUserId);
-                    return Ok(workspaces);
+                    userIdClaim = User.FindFirst("id")?.Value ?? User.FindFirst("nameid")?.Value;
                 }
-                catch (Exception ex)
-                {
-                    // Ubah sementara ke ex.Message agar Anda bisa melihat jika ada error parsing/konversi di terminal log
-                    return StatusCode(500, $"Terjadi kesalahan internal: {ex.Message}");
-                }
+
+                if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized("Token tidak mengandung klaim ID User.");
+
+                int currentUserId = int.Parse(userIdClaim);
+
+                var workspaces = await _workspaceService.GetUserWorkspacesAsync(currentUserId);
+                return Ok(workspaces);
             }
+            catch (Exception ex)
+            {
+                // Ubah sementara ke ex.Message agar Anda bisa melihat jika ada error parsing/konversi di terminal log
+                return StatusCode(500, $"Terjadi kesalahan internal: {ex.Message}");
+            }
+        }
         [HttpPut("{id}")]
         public async Task<IActionResult> Update(int id, [FromBody] UpdateWorkspaceDto dto)
         {
@@ -138,6 +138,24 @@ namespace MiniProjectManager.API.Controllers
 
             if (!success) return Forbid("Gagal menghapus. Project tidak ditemukan atau Anda bukan Leader.");
             return Ok(new { message = "Project berhasil dihapus secara permanen!" });
+        }
+
+        public async Task<IActionResult> InviteMember(int id, [FromBody] InviteMemberDto dto)
+        {
+            if (string.IsNullOrWhiteSpace(dto.Username))
+                return BadRequest(new { message = "Nama pengguna tidak boleh kosong." });
+
+            // Ambil hak akses user pengundang (Leader)
+            var userIdClaim = User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+            if (string.IsNullOrEmpty(userIdClaim)) return Unauthorized();
+
+            // Jalankan eksekusi penambahan anggota ke service
+            var success = await _workspaceService.AddMemberByUsernameAsync(id, dto.Username);
+
+            if (!success)
+                return NotFound(new { message = $"Pengguna dengan nama '{dto.Username}' tidak ditemukan." });
+
+            return Ok(new { message = $"Berhasil menambahkan {dto.Username} ke dalam tim!" });
         }
     }
 }
